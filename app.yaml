@@ -1,0 +1,11 @@
+command:
+  - "gunicorn"
+  - "server.app:app"
+  - "-w"
+  - "2"
+  - "--worker-class"
+  - "uvicorn.workers.UvicornWorker"
+
+env:
+  - name: "SERVING_ENDPOINT_NAME"
+    value: "databricks-claude-sonnet-4"
