@@ -1,138 +1,36 @@
-# AI Chat Application
+# Async Agent Calls with Databricks Lakebase
+
+A FastAPI-based asynchronous agent implementation that integrates Databricks AI agents with PostgreSQL for scalable, non-blocking chat interactions.
+
+## 🎯 Overview
+
+This project demonstrates how to implement **asynchronous agent calls** using FastAPI's BackgroundTasks combined with Databricks Lakebase (PostgreSQL). The key innovation is the ability to handle long-running AI agent queries without blocking the API, enabling better scalability and user experience.
+The frontend used is from https://github.com/databricks-solutions/databricks-blogposts/tree/main/agent_chat
 
 
-![Chat Interface](./client/public/chat-interface.png)
-_AI Chat Interface with real-time responses_
+## 🏗️ How It Works
 
-## Databricks Blogpost
-https://www.databricks.com/blog/building-databricks-apps-react-and-mosaic-ai-agents-enterprise-chat-solutions
+### Request Flow
 
-## Overview
-
-This app is a full-stack application featuring a chat interface powered by LLM, built with React and FastAPI.
-
-### Key Features
-
-- 🤖 AI-powered chat interface
-- 🎨 Modern UI with Tailwind CSS
-- 🔄 Real-time response handling
-- 🌐 FastAPI backend with async support
-
-## Prerequisites
-
-- Python 3.8+
-- Node.js 18.x+
-- npm or yarn
-- A Databricks workspace (for AI model serving)
-
-## Environment Setup
-
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
+```
+1. Client sends question → POST /api/start-conversation
+2. Server returns question_id immediately (optional, for demo purposes only)
+3. Insert question_id, question and status into a Lakebase table
+3. Agent call runs in background via BackgroundTasks
+4. Status is inserted as "Processing" in Lakebase table
+5. Client polls GET /api/get-status/{question_id}
+6. When complete, status updates to "Done"
+7. Client retrieves answer via GET /api/get-answer/{question_id}
 ```
 
-2. Create and activate a Python virtual environment:
+This way, instead of calling the serving endpoint through the API call, you can call the App APIs `POST /api/start-conversation`, `GET /api/get-status/{question_id}` and `GET /api/get-answer/{question_id}`.
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-```
+## 📋 Notes
 
-3. Install Python dependencies:
+- This example is a simple implementation and can be improved considering best practices (`.env` file for parameters and DABs, for example)
+- The frontend is completely optional (for demo purposes only). The real interface could be a Microsoft Teams Bot or something similar
+- The main logic is in the backend. However, be aware of the logic in /client/src/PremiumChatBot.js for orchestrating the API calls. Something similar will be needed on the interface you choose to use
+- Make sure you have a Lakebase resource and table created before using the App
+- Grant permission for the App to have access to the Lakebase resource
+- Change the table name being queried if the name is different
 
-```bash
-pip install -r requirements.txt
-```
-
-## Building the Frontend
-
-1. Navigate to the client directory:
-
-```bash
-cd client
-```
-
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Build the production version:
-
-```bash
-npm run build
-```
-
-## Running the Application
-
-1. For development with hot-reload:
-
-```bash
-# Terminal 1 - Frontend
-cd client
-npm start
-
-# Terminal 2 - Backend
-gunicorn server.app:app -w 2 --worker-class uvicorn.workers.UvicornWorker
-```
-
-2. For production:
-
-```bash
-gunicorn server.app:app -w 2 --worker-class uvicorn.workers.UvicornWorker
-```
-
-3. For Databricks Apps deployment:
-
-   a. Install the Databricks CLI:
-
-   ```bash
-   brew install databricks
-   ```
-
-   b. Create the app in your workspace:
-
-   ```bash
-   databricks apps create chat-app
-   ```
-
-   c. Create an `app.yaml` file in the root directory:
-
-   ```yaml
-   command:
-   - "gunicorn"
-   - "server.app:app"
-   - "-w"
-   - "2"
-   - "--worker-class"
-   - "uvicorn.workers.UvicornWorker"
-
-   env:
-   - name: "SERVING_ENDPOINT_NAME"
-       valueFrom: "agent_MODEL_NAME_FQN"
-   ```
-
-   The `app.yaml` configuration uses gunicorn as the WSGI server to run your FastAPI application.
-   The environment section defines `SERVING_ENDPOINT_NAME` which is configured (`serving_endpoint`) through apps creation in Databricks, securly storing and accessing sensitive values.
-
-   For detials on how to create an app in Databricks, please refer to the [Databricks Apps Documentation](https://docs.databricks.com/en/dev-tools/databricks-apps/configuration.html).
-
-   d. Sync your local files to Databricks workspace:
-
-   ```bash
-   # Add node_modules/ and venv/ to .gitignore first if not already present
-   databricks sync --watch . /Workspace/Users/<your-email>/chat-app
-   ```
-
-   e. Deploy the app:
-
-   ```bash
-   databricks apps deploy chat-app --source-code-path /Workspace/Users/<your-email>/chat-app
-   ```
-
-   The application will be available at your Databricks Apps URL:
-
-   - Production URL: https://chat-app-[id].cloud.databricksapps.com
